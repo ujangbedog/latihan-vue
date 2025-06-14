@@ -1,17 +1,24 @@
 import { createRouter, createWebHistory } from "vue-router";
 import type { RouteRecordRaw } from "vue-router";
-import Home from "@/pages/Home.vue";
+import Home from "@/views/Home.vue";
+import Users from "@/views/Users.vue";
+import NotFound from "@/views/404.vue";
 
 const routes: RouteRecordRaw[] = [
   {
     path: "/",
-    name: "home",
+    name: "Home",
     component: Home,
   },
   {
-    path: "/about",
-    name: "about",
-    component: () => import("@/pages/About.vue"),
+    path: "/users",
+    name: "Users",
+    component: Users,
+  },
+  {
+    path: "/:pathMatch(.*)*",
+    name: "NotFound",
+    component: NotFound,
   },
 ];
 

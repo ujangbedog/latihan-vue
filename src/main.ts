@@ -1,17 +1,14 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-import axios from "axios";
+import App from "@/App.vue";
 import router from "@/router";
 import "@/style.css";
-import App from "@/App.vue";
-
-const pinia = createPinia();
+import { setupToast } from "@/lib/toast";
 
 const app = createApp(App);
 
+app.use(createPinia());
 app.use(router);
-app.use(pinia);
-
-app.config.globalProperties.$axios = axios;
+setupToast(app);
 
 app.mount("#app");
