@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
+import { Bars3Icon } from '@heroicons/vue/24/outline';
+import Input from '@/components/ui/Input.vue';
 
 const router = useRouter();
 const searchQuery = ref('');
@@ -64,18 +65,14 @@ onMounted(() => {
       
       <div class="flex items-center flex-1 max-w-md relative">
         <div class="relative w-full">
-          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon class="h-5 w-5 text-gray-500" />
-          </div>
-          <input 
+          <Input
             ref="searchInputRef"
             v-model="searchQuery"
-            type="text" 
-            placeholder="Search pages..." 
-            class="block w-full pl-10 pr-3 py-2 border border-gray-800 rounded-md bg-transparent text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+            type="search"
+            placeholder="Search pages..."
             @focus="handleSearchFocus"
             @blur="handleSearchBlur"
-          >
+          />
           
           <div 
             v-if="showSearchResults && filteredPages.length > 0" 
