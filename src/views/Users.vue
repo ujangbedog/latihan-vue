@@ -1,85 +1,108 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import DashboardLayout from '@/components/layout/DashboardLayout.vue';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Table from '@/components/ui/Table.vue';
-import { UserIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon, ArrowPathIcon } from '@heroicons/vue/24/outline';
-import { useToast } from '../composables/useToast';
+import Modal from '@/components/ui/Modal.vue';
+import UserForm from '@/components/users/UserForm.vue';
+import Input from '@/components/ui/Input.vue';
+import Spinner from '@/components/ui/Spinner.vue';
+import { UserIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon, ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
+import { useToast } from '@/composables/useToast';
+import { userService } from '@/services';
+import type { User } from '@/services';
+
+interface UserFormInstance {
+  resetSubmitting: () => void;
+}
+const userFormRef = ref<UserFormInstance | null>(null);
 
 const toast = useToast();
-const users = ref([
-  { 
-    id: 1, 
-    name: 'John Smith', 
-    email: 'john@example.com',
-    role: 'Admin',
-    status: 'Active',
-    lastLogin: '2 hours ago'
-  },
-  { 
-    id: 2, 
-    name: 'Jane Doe', 
-    email: 'jane@example.com',
-    role: 'Editor',
-    status: 'Active',
-    lastLogin: '1 day ago'
-  },
-  { 
-    id: 3, 
-    name: 'Mike Johnson', 
-    email: 'mike@example.com',
-    role: 'User',
-    status: 'Inactive',
-    lastLogin: '1 week ago'
-  },
-  { 
-    id: 4, 
-    name: 'Sarah Williams', 
-    email: 'sarah@example.com',
-    role: 'User',
-    status: 'Active',
-    lastLogin: '3 hours ago'
-  },
-  { 
-    id: 5, 
-    name: 'David Brown', 
-    email: 'david@example.com',
-    role: 'Editor',
-    status: 'Active',
-    lastLogin: '5 days ago'
-  },
-  { 
-    id: 6, 
-    name: 'Jancu Mena', 
-    email: 'jancu@example.com',
-    role: 'Hacker',
-    status: 'Active',
-    lastLogin: '8 days ago'
-  }
-]);
+const users = ref<User[]>([]);
+const isLoadingUsers = ref(true);
 
 const columns = [
+  { key: 'avatar', label: 'Avatar' },
   { key: 'name', label: 'Name', sortable: true },
   { key: 'email', label: 'Email', sortable: true },
-  { key: 'role', label: 'Role', sortable: true },
-  { key: 'status', label: 'Status', sortable: true },
-  { key: 'lastLogin', label: 'Last Login', sortable: true }
+  { key: 'job', label: 'Job', sortable: true },
 ];
 
 const rowsPerPageOptions = [5, 10, 25, 50];
 const searchQuery = ref('');
 const isSearchVisible = ref(false);
+const showUserModal = ref(false);
+const isEditing = ref(false);
+const currentUser = ref<User | undefined>(undefined);
 
-const handleEdit = (user: any) => {
-  console.log('Edit user:', user);
-  toast.info(`Editing user: ${user.name}`);
+const showDeleteModal = ref(false);
+const userToDelete = ref<User | null>(null);
+const isDeleting = ref(false);
+
+const fetchUsers = async () => {
+  isLoadingUsers.value = true;
+  try {
+    users.value = await userService.getAll();
+    toast.success('Users loaded successfully');
+  } catch (error) {
+    toast.error('Failed to load users');
+    console.error('Error fetching users:', error);
+  } finally {
+    isLoadingUsers.value = false;
+  }
 };
 
-const handleDelete = (user: any) => {
-  console.log('Delete user:', user);
-  toast.warning(`Are you sure you want to delete ${user.name}?`);
+onMounted(() => {
+  fetchUsers();
+});
+
+const handleEdit = (row: any) => {
+  if (row && typeof row.name === 'string' && typeof row.email === 'string' && typeof row.job === 'string') {
+    const user: User = {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      job: row.job,
+      avatar: row.avatar
+    };
+    currentUser.value = user;
+    isEditing.value = true;
+    showUserModal.value = true;
+  } else {
+    toast.error('Invalid user data');
+  }
+};
+
+const handleDelete = (row: any) => {
+  if (!row || !row.id) return;
+  
+  userToDelete.value = row;
+  showDeleteModal.value = true;
+};
+
+const confirmDelete = async () => {
+  if (!userToDelete.value || !userToDelete.value.id) return;
+  
+  isDeleting.value = true;
+  
+  try {
+    await userService.delete(userToDelete.value.id);
+    toast.success(`User ${userToDelete.value.name} deleted successfully`);
+    users.value = users.value.filter(u => u.id !== userToDelete.value!.id);
+    showDeleteModal.value = false;
+  } catch (error) {
+    toast.error('Failed to delete user');
+    console.error('Error deleting user:', error);
+  } finally {
+    isDeleting.value = false;
+  }
+};
+
+const cancelDelete = () => {
+  showDeleteModal.value = false;
+  userToDelete.value = null;
 };
 
 const handleSort = (sortData: { key: string, direction: string }) => {
@@ -103,9 +126,8 @@ const handleRowsPerPageChange = (rows: number) => {
   toast.info(`Showing ${rows} rows per page`);
 };
 
-const updateSearchQuery = (event: Event) => {
-  const input = event.target as HTMLInputElement;
-  searchQuery.value = input.value;
+const updateSearchQuery = (value: string | number) => {
+  searchQuery.value = typeof value === 'string' ? value : value.toString();
 };
 
 const toggleSearch = () => {
@@ -116,14 +138,46 @@ const toggleSearch = () => {
 };
 
 const refreshData = () => {
-  console.log('Refreshing data...');
-  toast.success('Data refreshed successfully!');
+  fetchUsers();
 };
 
 const addNewUser = () => {
-  toast.success('New user form opened');
+  currentUser.value = undefined;
+  isEditing.value = false;
+  showUserModal.value = true;
 };
 
+const handleUserFormSubmit = async (userData: User) => {
+  try {
+    if (isEditing.value && currentUser.value && currentUser.value.id) {
+      const updatedUser = await userService.update(currentUser.value.id, userData);
+      
+      const index = users.value.findIndex(u => u.id === currentUser.value!.id);
+      if (index !== -1) {
+        users.value[index] = updatedUser;
+      }
+      
+      toast.success(`User ${userData.name} updated successfully`);
+    } else {
+      const newUser = await userService.create(userData);
+      users.value.push(newUser);
+      toast.success(`User ${userData.name} created successfully`);
+    }
+    
+    showUserModal.value = false;
+  } catch (error) {
+    toast.error(isEditing.value ? 'Failed to update user' : 'Failed to create user');
+    console.error('Error saving user:', error);
+  } finally {
+    if (userFormRef.value) {
+      userFormRef.value.resetSubmitting();
+    }
+  }
+};
+
+const closeUserModal = () => {
+  showUserModal.value = false;
+};
 </script>
 
 <template>
@@ -139,7 +193,12 @@ const addNewUser = () => {
         <div class="text-sm text-gray-400">Total: {{ users.length }} users</div>
       </div>
       
+      <div v-if="isLoadingUsers" class="flex justify-center items-center py-10">
+        <Spinner size="md" color="white" text="Loading users..." />
+      </div>
+      
       <Table 
+        v-else
         :columns="columns" 
         :data="users" 
         striped 
@@ -156,20 +215,21 @@ const addNewUser = () => {
         @rows-per-page-change="handleRowsPerPageChange"
       >
         <template #search-area>
-          <div class="flex space-x-2">
+          <div class="flex items-center space-x-2">
             <div class="flex-1 relative overflow-hidden transition-all duration-300" :class="{ 'w-0 flex-grow-0': !isSearchVisible, 'flex-1': isSearchVisible }">
               <transition name="slide-right">
-                <input
-                  v-if="isSearchVisible"
-                  :value="searchQuery"
-                  type="text"
-                  placeholder="Search..."
-                  class="w-full px-4 py-2 bg-black/40 border border-gray-800/60 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-500"
-                  @input="updateSearchQuery"
-                />
+                <div v-if="isSearchVisible" class="w-full">
+                  <Input
+                    v-model="searchQuery"
+                    type="search"
+                    placeholder="Search users..."
+                    @update:modelValue="updateSearchQuery"
+                    class="focus:outline-none focus:ring-1 focus:ring-offset-1"
+                  />
+                </div>
               </transition>
             </div>
-            <div class="flex space-x-2">
+            <div class="flex items-center space-x-2 flex-shrink-0">
               <Button variant="secondary" rounded @click="toggleSearch">
                 <MagnifyingGlassIcon class="h-5 w-5" />
               </Button>
@@ -184,31 +244,29 @@ const addNewUser = () => {
           </div>
         </template>
         
+        <template #cell-avatar="{ row }">
+          <img 
+            v-if="row.avatar" 
+            :src="row.avatar" 
+            :alt="row.name" 
+            class="w-8 h-8 rounded-full object-cover" 
+          />
+          <div v-else class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-white">
+            {{ row.name.charAt(0).toUpperCase() }}
+          </div>
+        </template>
+        
         <template #cell-name="{ value }">
           <div class="font-medium text-white">{{ value }}</div>
         </template>
         
-        <template #cell-role="{ value }">
+        <template #cell-job="{ value }">
           <Badge 
-            :variant="value === 'Admin' ? 'primary' : value === 'Editor' ? 'info' : value === 'Hacker' ? 'danger' : 'secondary'"
+            :variant="value === 'Developer' ? 'primary' : value === 'Designer' ? 'info' : value === 'Manager' ? 'success' : value === 'Marketing' ? 'warning' : 'secondary'"
             size="sm"
           >
             {{ value }}
           </Badge>
-        </template>
-        
-        <template #cell-status="{ value }">
-          <Badge 
-            :variant="value === 'Active' ? 'success' : 'secondary'"
-            rounded
-            size="sm"
-          >
-            {{ value }}
-          </Badge>
-        </template>
-        
-        <template #cell-lastLogin="{ value }">
-          <span class="text-gray-400">{{ value }}</span>
         </template>
         
         <template #actions="{ row }">
@@ -231,6 +289,57 @@ const addNewUser = () => {
         </template>
       </Table>
     </Card>
+    
+    <Modal 
+      :show="showUserModal" 
+      :title="isEditing ? 'Edit User' : 'Add New User'" 
+      @close="closeUserModal"
+    >
+      <UserForm 
+        ref="userFormRef"
+        :user="currentUser" 
+        :isEditing="isEditing"
+        @submit="handleUserFormSubmit"
+        @cancel="closeUserModal"
+      />
+    </Modal>
+    
+    <Modal
+      :show="showDeleteModal"
+      title="Confirm Delete"
+      size="sm"
+      @close="cancelDelete"
+    >
+      <div class="flex flex-col items-center text-center">
+        <ExclamationTriangleIcon class="h-12 w-12 text-red-500 mb-4" />
+        <h3 class="text-lg font-medium text-white mb-2">Delete User</h3>
+        <p class="text-gray-400 mb-4">
+          Are you sure you want to delete <span class="text-white font-medium">{{ userToDelete?.name }}</span>?
+          <br>This action cannot be undone.
+        </p>
+      </div>
+      
+      <template #footer>
+        <Button 
+          variant="secondary" 
+          @click="cancelDelete"
+          :disabled="isDeleting"
+        >
+          Cancel
+        </Button>
+        <Button 
+          variant="danger" 
+          @click="confirmDelete"
+          :loading="isDeleting"
+          :disabled="isDeleting"
+        >
+          Delete
+          <template #loading>
+            Deleting...
+          </template>
+        </Button>
+      </template>
+    </Modal>
   </DashboardLayout>
 </template>
 
