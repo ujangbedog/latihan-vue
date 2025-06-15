@@ -9,10 +9,11 @@ import Modal from '@/components/ui/Modal.vue';
 import UserForm from '@/components/users/UserForm.vue';
 import Input from '@/components/ui/Input.vue';
 import Spinner from '@/components/ui/Spinner.vue';
-import { UserIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon, ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
+import { UserIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon, ArrowPathIcon, ExclamationTriangleIcon, EyeIcon } from '@heroicons/vue/24/outline';
 import { useToast } from '@/composables/useToast';
 import { userService } from '@/services';
 import type { User } from '@/services';
+import { useRouter, useRoute } from 'vue-router';
 
 interface UserFormInstance {
   resetSubmitting: () => void;
@@ -41,6 +42,9 @@ const showDeleteModal = ref(false);
 const userToDelete = ref<User | null>(null);
 const isDeleting = ref(false);
 
+const router = useRouter();
+const route = useRoute();
+
 const fetchUsers = async () => {
   isLoadingUsers.value = true;
   try {
@@ -56,6 +60,30 @@ const fetchUsers = async () => {
 
 onMounted(() => {
   fetchUsers();
+  
+  // Check if we have an edit query parameter
+  const editUserId = route.query.edit;
+  if (editUserId && typeof editUserId === 'string') {
+    const userId = Number(editUserId);
+    if (!isNaN(userId)) {
+      const userToEdit = users.value.find(u => u.id === userId);
+      if (userToEdit) {
+        handleEdit(userToEdit);
+      } else {
+        // If user not found in current list, fetch it
+        userService.getById(userId)
+          .then(user => {
+            if (user) {
+              handleEdit(user);
+            }
+          })
+          .catch(error => {
+            toast.error('Failed to load user for editing');
+            console.error('Error fetching user for editing:', error);
+          });
+      }
+    }
+  }
 });
 
 const handleEdit = (row: any) => {
@@ -178,6 +206,14 @@ const handleUserFormSubmit = async (userData: User) => {
 const closeUserModal = () => {
   showUserModal.value = false;
 };
+
+const viewUserDetail = (row: any) => {
+  if (row && row.id) {
+    router.push({ name: 'UserDetail', params: { id: row.id } });
+  } else {
+    toast.error('Invalid user data');
+  }
+};
 </script>
 
 <template>
@@ -271,6 +307,13 @@ const closeUserModal = () => {
         
         <template #actions="{ row }">
           <div class="flex space-x-4">
+            <button 
+              @click="viewUserDetail(row)"
+              class="text-white hover:text-blue-400 transition-all hover:scale-110"
+              title="View user details"
+            >
+              <EyeIcon class="h-5 w-5" />
+            </button>
             <button 
               @click="handleEdit(row)"
               class="text-white hover:text-blue-400 transition-all hover:scale-110"
