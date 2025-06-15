@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { ArrowUpIcon, ArrowDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/24/solid';
+import Input from './Input.vue';
 
 interface Column {
   key: string;
@@ -98,7 +99,6 @@ const pageNumbers = computed(() => {
   const maxPagesToShow = 5;
   
   if (totalPages.value <= maxPagesToShow) {
-    // Show all pages
     for (let i = 1; i <= totalPages.value; i++) {
       pages.push(i);
     }
@@ -162,9 +162,8 @@ const changeRowsPerPage = (event: Event) => {
   emit('rows-per-page-change', rowsPerPage.value);
 };
 
-const handleSearchInput = (event: Event) => {
-  const input = event.target as HTMLInputElement;
-  internalSearchQuery.value = input.value;
+const handleSearchInput = (value: string | number) => {
+  internalSearchQuery.value = value.toString();
   
   if (props.paginated) {
     currentPage.value = 1;
@@ -193,16 +192,18 @@ watch(() => props.data.length, () => {
     <div v-if="props.searchable" class="mb-4">
       <div class="relative">
         <slot name="search-area">
-          <input
-            :value="searchQuery"
-            type="text"
+          <Input
+            :modelValue="searchQuery"
+            type="search"
             placeholder="Search..."
-            class="w-full px-4 py-2 bg-black/40 border border-gray-800/60 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-500"
-            @input="handleSearchInput"
-          />
-          <div v-if="searchQuery" class="absolute right-3 top-2.5 text-xs text-gray-400">
-            {{ filteredData.length }} results
-          </div>
+            @update:modelValue="handleSearchInput"
+            showCount
+            class="mb-0"
+          >
+            <template #counter>
+              {{ filteredData.length }} results
+            </template>
+          </Input>
         </slot>
       </div>
     </div>
