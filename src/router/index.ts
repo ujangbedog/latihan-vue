@@ -1,9 +1,11 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHashHistory } from "vue-router";
 import type { RouteRecordRaw } from "vue-router";
 import Home from "@/views/Home.vue";
-import Users from "@/views/users/Users.vue";
+import UserList from "@/views/users/List.vue";
 import NotFound from "@/views/404.vue";
-import UserDetail from "@/views/users/UserDetail.vue";
+import DetailUser from "@/views/users/Detail.vue";
+import AddUser from "@/views/users/Add.vue";
+import EditUser from "@/views/users/Edit.vue";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -13,13 +15,24 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/users",
-    name: "Users",
-    component: Users,
+    name: "UserList",
+    component: UserList,
   },
   {
-    path: "/users/:id",
-    name: "UserDetail",
-    component: UserDetail,
+    path: "/users/add",
+    name: "AddUser",
+    component: AddUser,
+  },
+  {
+    path: "/users/edit/:id",
+    name: "EditUser",
+    component: EditUser,
+    props: true,
+  },
+  {
+    path: "/users/detail/:id",
+    name: "DetailUser",
+    component: DetailUser,
     props: true,
   },
   {
@@ -30,7 +43,7 @@ const routes: RouteRecordRaw[] = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes,
 });
 

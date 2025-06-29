@@ -3,24 +3,18 @@ import { ref, onMounted } from 'vue';
 import DashboardLayout from '@/components/layout/DashboardLayout.vue';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Table from '@/components/ui/Table.vue';
-import Modal from '@/components/ui/Modal.vue';
-import UserForm from '@/components/users/UserForm.vue';
+import Table from '@/components/ui/Table.vue'
 import Input from '@/components/ui/Input.vue';
+import ConfirmDeleteModal from '@/components/ui/ConfirmDelete.vue';
 import Spinner from '@/components/ui/Spinner.vue';
-import { UserIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon, ArrowPathIcon, ExclamationTriangleIcon, EyeIcon } from '@heroicons/vue/24/outline';
+import { UserIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon, ArrowPathIcon, EyeIcon } from '@heroicons/vue/24/outline';
 import { useToast } from '@/composables/useToast';
 import { userService } from '@/services';
 import type { User } from '@/services';
-import { useRouter, useRoute } from 'vue-router';
-
-interface UserFormInstance {
-  resetSubmitting: () => void;
-}
-const userFormRef = ref<UserFormInstance | null>(null);
+import { useRouter } from 'vue-router';
 
 const toast = useToast();
+const router = useRouter();
 const users = ref<User[]>([]);
 const isLoadingUsers = ref(true);
 
@@ -28,22 +22,15 @@ const columns = [
   { key: 'avatar', label: 'Avatar' },
   { key: 'name', label: 'Name', sortable: true },
   { key: 'email', label: 'Email', sortable: true },
-  { key: 'job', label: 'Job', sortable: true },
 ];
 
 const rowsPerPageOptions = [5, 10, 25, 50];
 const searchQuery = ref('');
 const isSearchVisible = ref(false);
-const showUserModal = ref(false);
-const isEditing = ref(false);
-const currentUser = ref<User | undefined>(undefined);
 
 const showDeleteModal = ref(false);
 const userToDelete = ref<User | null>(null);
 const isDeleting = ref(false);
-
-const router = useRouter();
-const route = useRoute();
 
 const fetchUsers = async () => {
   isLoadingUsers.value = true;
@@ -60,44 +47,11 @@ const fetchUsers = async () => {
 
 onMounted(() => {
   fetchUsers();
-  
-  // Check if we have an edit query parameter
-  const editUserId = route.query.edit;
-  if (editUserId && typeof editUserId === 'string') {
-    const userId = Number(editUserId);
-    if (!isNaN(userId)) {
-      const userToEdit = users.value.find(u => u.id === userId);
-      if (userToEdit) {
-        handleEdit(userToEdit);
-      } else {
-        // If user not found in current list, fetch it
-        userService.getById(userId)
-          .then(user => {
-            if (user) {
-              handleEdit(user);
-            }
-          })
-          .catch(error => {
-            toast.error('Failed to load user for editing');
-            console.error('Error fetching user for editing:', error);
-          });
-      }
-    }
-  }
 });
 
 const handleEdit = (row: any) => {
-  if (row && typeof row.name === 'string' && typeof row.email === 'string' && typeof row.job === 'string') {
-    const user: User = {
-      id: row.id,
-      name: row.name,
-      email: row.email,
-      job: row.job,
-      avatar: row.avatar
-    };
-    currentUser.value = user;
-    isEditing.value = true;
-    showUserModal.value = true;
+  if (row && row.id) {
+    router.push({ name: 'EditUser', params: { id: row.id } });
   } else {
     toast.error('Invalid user data');
   }
@@ -133,27 +87,6 @@ const cancelDelete = () => {
   userToDelete.value = null;
 };
 
-const handleSort = (sortData: { key: string, direction: string }) => {
-  console.log('Sort by:', sortData.key, 'Direction:', sortData.direction);
-  toast.info(`Sorted by ${sortData.key} in ${sortData.direction} order`);
-};
-
-const handleSearch = (query: string) => {
-  console.log('Search query:', query);
-  if (query) {
-    toast.info(`Searching for "${query}"`);
-  }
-};
-
-const handlePageChange = (page: number) => {
-  console.log('Page changed to:', page);
-};
-
-const handleRowsPerPageChange = (rows: number) => {
-  console.log('Rows per page changed to:', rows);
-  toast.info(`Showing ${rows} rows per page`);
-};
-
 const updateSearchQuery = (value: string | number) => {
   searchQuery.value = typeof value === 'string' ? value : value.toString();
 };
@@ -170,46 +103,12 @@ const refreshData = () => {
 };
 
 const addNewUser = () => {
-  currentUser.value = undefined;
-  isEditing.value = false;
-  showUserModal.value = true;
-};
-
-const handleUserFormSubmit = async (userData: User) => {
-  try {
-    if (isEditing.value && currentUser.value && currentUser.value.id) {
-      const updatedUser = await userService.update(currentUser.value.id, userData);
-      
-      const index = users.value.findIndex(u => u.id === currentUser.value!.id);
-      if (index !== -1) {
-        users.value[index] = updatedUser;
-      }
-      
-      toast.success(`User ${userData.name} updated successfully`);
-    } else {
-      const newUser = await userService.create(userData);
-      users.value.push(newUser);
-      toast.success(`User ${userData.name} created successfully`);
-    }
-    
-    showUserModal.value = false;
-  } catch (error) {
-    toast.error(isEditing.value ? 'Failed to update user' : 'Failed to create user');
-    console.error('Error saving user:', error);
-  } finally {
-    if (userFormRef.value) {
-      userFormRef.value.resetSubmitting();
-    }
-  }
-};
-
-const closeUserModal = () => {
-  showUserModal.value = false;
+  router.push({ name: 'AddUser' });
 };
 
 const viewUserDetail = (row: any) => {
   if (row && row.id) {
-    router.push({ name: 'UserDetail', params: { id: row.id } });
+    router.push({ name: 'DetailUser', params: { id: row.id } });
   } else {
     toast.error('Invalid user data');
   }
@@ -220,7 +119,7 @@ const viewUserDetail = (row: any) => {
   <DashboardLayout>
     <div class="mb-6">
       <h1 class="text-2xl font-bold text-white">Users</h1>
-      <p class="text-gray-400 mt-1">Manage system users</p>
+      <p class="text-gray-400 mt-1">Manage Users</p>
     </div>
     
     <Card bordered>
@@ -245,10 +144,6 @@ const viewUserDetail = (row: any) => {
         :rowsPerPageOptions="rowsPerPageOptions"
         :initialRowsPerPage="5"
         :searchValue="searchQuery"
-        @sort="handleSort"
-        @search="handleSearch"
-        @page-change="handlePageChange"
-        @rows-per-page-change="handleRowsPerPageChange"
       >
         <template #search-area>
           <div class="flex items-center space-x-2">
@@ -296,15 +191,6 @@ const viewUserDetail = (row: any) => {
           <div class="font-medium text-white">{{ value }}</div>
         </template>
         
-        <template #cell-job="{ value }">
-          <Badge 
-            :variant="value === 'Developer' ? 'primary' : value === 'Designer' ? 'info' : value === 'Manager' ? 'success' : value === 'Marketing' ? 'warning' : 'secondary'"
-            size="sm"
-          >
-            {{ value }}
-          </Badge>
-        </template>
-        
         <template #actions="{ row }">
           <div class="flex space-x-4">
             <button 
@@ -333,56 +219,13 @@ const viewUserDetail = (row: any) => {
       </Table>
     </Card>
     
-    <Modal 
-      :show="showUserModal" 
-      :title="isEditing ? 'Edit User' : 'Add New User'" 
-      @close="closeUserModal"
-    >
-      <UserForm 
-        ref="userFormRef"
-        :user="currentUser" 
-        :isEditing="isEditing"
-        @submit="handleUserFormSubmit"
-        @cancel="closeUserModal"
-      />
-    </Modal>
-    
-    <Modal
+    <ConfirmDeleteModal
       :show="showDeleteModal"
-      title="Confirm Delete"
-      size="sm"
+      :item-name="userToDelete?.name || 'this user'"
+      :loading="isDeleting"
       @close="cancelDelete"
-    >
-      <div class="flex flex-col items-center text-center">
-        <ExclamationTriangleIcon class="h-12 w-12 text-red-500 mb-4" />
-        <h3 class="text-lg font-medium text-white mb-2">Delete User</h3>
-        <p class="text-gray-400 mb-4">
-          Are you sure you want to delete <span class="text-white font-medium">{{ userToDelete?.name }}</span>?
-          <br>This action cannot be undone.
-        </p>
-      </div>
-      
-      <template #footer>
-        <Button 
-          variant="secondary" 
-          @click="cancelDelete"
-          :disabled="isDeleting"
-        >
-          Cancel
-        </Button>
-        <Button 
-          variant="danger" 
-          @click="confirmDelete"
-          :loading="isDeleting"
-          :disabled="isDeleting"
-        >
-          Delete
-          <template #loading>
-            Deleting...
-          </template>
-        </Button>
-      </template>
-    </Modal>
+      @confirm="confirmDelete"
+    />
   </DashboardLayout>
 </template>
 

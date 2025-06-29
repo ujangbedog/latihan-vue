@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps<{
@@ -31,20 +31,15 @@ const updateValue = (event: Event) => {
   emit('update:modelValue', props.type === 'number' ? Number(target.value) : target.value);
 };
 
-const handleFocus = () => {
-  emit('focus');
-};
+const handleFocus = () => emit('focus');
+const handleBlur = () => emit('blur');
 
-const handleBlur = () => {
-  emit('blur');
-};
+const hasLeftIcon = computed(() => props.icon !== false && (props.icon || props.type === 'search'));
+const hasRightIcon = computed(() => props.iconPosition === 'right' && props.icon !== false && props.icon);
 
-const hasLeftIcon = computed(() => {
-  return props.icon !== false && (props.icon || props.type === 'search');
-});
-
-const hasRightIcon = computed(() => {
-  return props.iconPosition === 'right' && props.icon !== false && props.icon;
+const inputRef = ref<HTMLInputElement | null>(null);
+defineExpose({
+  focus: () => inputRef.value?.focus(),
 });
 </script>
 
@@ -58,14 +53,15 @@ const hasRightIcon = computed(() => {
       {{ label }}
       <span v-if="required" class="text-red-500 ml-1">*</span>
     </label>
-    
+
     <div class="relative w-full">
       <div v-if="hasLeftIcon" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <MagnifyingGlassIcon v-if="type === 'search' || icon === true" class="h-5 w-5 text-gray-500" />
         <slot v-else name="icon"></slot>
       </div>
-      
+
       <input 
+        ref="inputRef"
         :id="inputId"
         :name="name"
         :type="type || 'text'"
@@ -86,7 +82,7 @@ const hasRightIcon = computed(() => {
         @focus="handleFocus"
         @blur="handleBlur"
       />
-      
+
       <div 
         v-if="hasRightIcon || (showCount && modelValue !== undefined && modelValue.toString().length > 0)" 
         class="absolute inset-y-0 right-0 pr-3 flex items-center"
@@ -99,7 +95,7 @@ const hasRightIcon = computed(() => {
         </span>
       </div>
     </div>
-    
+
     <p v-if="error" class="mt-1 text-sm text-red-500">{{ error }}</p>
   </div>
-</template> 
+</template>

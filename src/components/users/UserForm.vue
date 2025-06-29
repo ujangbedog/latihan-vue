@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, watch, computed } from 'vue';
 import Input from '@/components/ui/Input.vue';
-import Select from '@/components/ui/Select.vue';
 import Button from '@/components/ui/Button.vue';
 import { useToast } from '@/composables/useToast';
 import type { User } from '@/services';
@@ -26,26 +25,16 @@ const toast = useToast();
 const formData = reactive<User>({
   name: '',
   email: '',
-  job: '',
   avatar: ''
 });
 
 const errors = reactive({
   name: '',
   email: '',
-  job: '',
   avatar: ''
 });
 
 const isSubmitting = ref(false);
-
-const jobOptions = [
-  { value: 'Developer', label: 'Developer' },
-  { value: 'Designer', label: 'Designer' },
-  { value: 'Manager', label: 'Manager' },
-  { value: 'Marketing', label: 'Marketing' },
-  { value: 'Sales', label: 'Sales' }
-];
 
 const loadingText = computed(() => props.isEditing ? 'Updating...' : 'Creating...');
 
@@ -53,7 +42,6 @@ watch(() => props.user, (newUser) => {
   if (newUser) {
     formData.name = newUser.name;
     formData.email = newUser.email;
-    formData.job = newUser.job;
     formData.avatar = newUser.avatar || '';
   }
 }, { immediate: true });
@@ -63,7 +51,6 @@ const validateForm = (): boolean => {
   
   errors.name = '';
   errors.email = '';
-  errors.job = '';
   errors.avatar = '';
   
   if (!formData.name.trim()) {
@@ -76,11 +63,6 @@ const validateForm = (): boolean => {
     isValid = false;
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
     errors.email = 'Please enter a valid email address';
-    isValid = false;
-  }
-  
-  if (!formData.job) {
-    errors.job = 'Job is required';
     isValid = false;
   }
   
@@ -99,7 +81,6 @@ const handleSubmit = async () => {
     const userData: User = {
       name: formData.name,
       email: formData.email,
-      job: formData.job
     };
     
     if (formData.avatar) {
@@ -145,15 +126,6 @@ defineExpose({
       required
       :error="errors.email"
       :icon="false"
-    />
-    
-    <Select
-      v-model="formData.job"
-      :options="jobOptions"
-      label="Job"
-      placeholder="Select job"
-      required
-      :error="errors.job"
     />
     
     <Input
